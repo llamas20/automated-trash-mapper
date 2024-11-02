@@ -17,10 +17,10 @@ class CustomGraph:
         self.G.add_node(node, pos=(x, y))
         self.positions[node] = (x, y)
 
-    def add_edge(self, node1, node2, weight, targets, congestion_prone=False):
+    def add_edge(self, node1, node2, weight, targets, congestion_prone=False, label=1):
         """Add an edge with a weight and targets, and mark if it is prone to congestion"""
         if not self.edge_overlap(node1, node2):
-            self.G.add_edge(node1, node2, weight=weight, targets=targets, congestion_prone=congestion_prone, base_weight=weight)
+            self.G.add_edge(node1, node2, weight=weight, targets=targets, congestion_prone=congestion_prone, base_weight=weight, label=label)
             return True
         else:
             print(f"Edge between {node1} and {node2} overlaps with an existing edge. Skipping.")
@@ -87,7 +87,7 @@ class CustomGraph:
         nx.draw_networkx_labels(self.G, self.positions, font_size=10, font_color='black')
 
         # Draw edge labels with weights and targets
-        edge_labels = {(u, v): f"W:{self.G[u][v]['weight']} T:{self.G[u][v]['targets']}" for u, v in self.G.edges()}
+        edge_labels = {(u, v): f"W:{self.G[u][v]['weight']} T:{self.G[u][v]['targets']} L:{self.G[u][v]['label']}" for u, v in self.G.edges()}
         nx.draw_networkx_edge_labels(self.G, self.positions, edge_labels=edge_labels, font_size=8)
 
         # Draw targets on edges (red dots with size proportional to targets)
@@ -167,8 +167,11 @@ class CustomGraph:
             # Check if this edge is congestion-prone
             congestion_prone = edge in congestion_prone_edges
 
+            # TODO:  Map subdivisions
+            label = np.random.randint(1, 4)
+
             edge_added = self.add_edge(node1, node2, weight=normalized_weight, targets=targets,
-                                       congestion_prone=congestion_prone)
+                                       congestion_prone=congestion_prone, label=label)
             if edge_added:
                 # Edge was added, safe to set base_weight
                 self.G[node1][node2]['base_weight'] = normalized_weight

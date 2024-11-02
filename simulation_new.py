@@ -11,11 +11,15 @@ def build_big_map():
     graph.build_a_map()  # Generates a map with 50 nodes
     return graph
 
+# Exits the figure upon closing the window
+def handle_close(evt):
+    raise SystemExit("Closed figure, exiting program")
+
 def main():
     # Initialize interactive mode and set up the figure
     plt.ion()
-    plt.figure(figsize=(12, 12))  # Initialize the figure once
-
+    fig = plt.figure(figsize=(12, 12))  # Initialize the figure once
+    fig.canvas.mpl_connect('close_event', handle_close)
     # Build the big map
     graph = build_big_map()
 
