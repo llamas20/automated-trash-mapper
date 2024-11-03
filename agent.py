@@ -3,7 +3,7 @@ from map import CustomGraph
 
 #Built by ChatGPT
 class Agent:
-    def __init__(self, graph, start_node, hub_node=1):
+    def __init__(self, graph, start_node, hub_node, name=None):
         """
         Initialize agent on the graph at a starting node.
         
@@ -11,6 +11,7 @@ class Agent:
         :param start_node: Node where the agent starts
         :param hub_node: Node designated as the hub
         """
+        self.name = name
         self.graph = graph  # The CustomGraph instance 
         self.current_node = start_node  # The current node the agent is at
         self.hub_node = hub_node  # The hub node
