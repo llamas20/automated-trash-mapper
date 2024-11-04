@@ -1,7 +1,7 @@
 import networkx as nx
 from map import CustomGraph
 
-
+#Built by ChatGPT
 class Agent:
     def __init__(self, graph, start_node, hub_node, agent_id):
         """
@@ -74,8 +74,8 @@ class Agent:
     def calculate_path_cost(self, path):
         """Calculate the total weight of the given path."""
         cost = 0
-        for i in range(len(path) - 1):
-            cost += self.graph.G[path[i]][path[i + 1]]['weight']
+        for i in range(len(path)-1):
+            cost += self.graph.G[path[i]][path[i+1]]['weight']
         return cost
 
     def step(self):

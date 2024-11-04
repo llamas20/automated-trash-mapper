@@ -3,12 +3,12 @@ from agent import Agent
 import matplotlib.pyplot as plt
 
 
-def build_big_map():
+def build_big_map(num_zones):
     """
     Build a larger map using Delaunay triangulation.
     """
     graph = CustomGraph()
-    graph.build_a_map()  # Generates a map with 50 nodes and labeled edges
+    graph.build_a_map(num_zones=num_zones)  # Generates a map with 50 nodes and labeled edges
     return graph
 
 
@@ -25,8 +25,11 @@ def create_agents(graph, num_agents, start_node, hub_node):
 
 
 def main():
-    # Build the big map
-    graph = build_big_map()
+    # Set number of agents/zones
+    num_agents = 5  # Change this number to use more agents
+
+    # Build the big map with specified number of zones
+    graph = build_big_map(num_agents)
 
     # Create figure
     fig = plt.figure(figsize=(12, 12))
@@ -41,8 +44,8 @@ def main():
     # Define the hub node (assuming node 1 is the hub)
     hub_node = 1
 
-    # Initialize agents - create 3 agents to match the 3 possible edge labels
-    agents = create_agents(graph, num_agents=3, start_node=hub_node, hub_node=hub_node)
+    # Initialize agents
+    agents = create_agents(graph, num_agents=num_agents, start_node=hub_node, hub_node=hub_node)
     print(f"Initialized {len(agents)} agents")
 
     # Visualize the initial map with the agents' positions
