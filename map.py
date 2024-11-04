@@ -97,11 +97,12 @@ class CustomGraph:
                 midpoint = np.mean([self.positions[u], self.positions[v]], axis=0)
                 plt.scatter(midpoint[0], midpoint[1], s=targets * 50, c='red', alpha=0.6, marker='o')
 
-        # Draw agents on the map as green dots
+        # Draw agents on the map as green dots with agent ID
         for agent in agents:
             if agent.current_node in self.positions:
                 agent_pos = self.positions[agent.current_node]
-                plt.scatter(agent_pos[0], agent_pos[1], s=300, c='green', edgecolors='black', label=f'Agent @ {agent.current_node}')
+                plt.scatter(agent_pos[0], agent_pos[1], s=300, c='green', edgecolors='black',
+                          label=f'Agent {agent.agent_id} @ {agent.current_node}')
 
         # Handle legend for agents
         if agents:
@@ -177,7 +178,7 @@ class CustomGraph:
                 self.G[node1][node2]['base_weight'] = normalized_weight
 
     def update_map(self):
-        """Update each edge with new congestion levels and targets."""
+        """Update each edge with new congestion levels only. No new targets generated."""
         # Update each edge with new congestion levels
         new_weights = {}
         congested_edges = set()
@@ -219,14 +220,6 @@ class CustomGraph:
 
         # Update congested edges
         self.congested_edges.update(congested_edges)
-
-        # Update targets
-        for node1, node2 in self.G.edges():
-            current_targets = self.G[node1][node2]['targets']
-            increment = random.randint(0, 2)
-            max_targets = 20
-            new_targets = min(current_targets + increment, max_targets)
-            self.update_edge_targets(node1, node2, new_targets)
 
     def get_neighboring_edges(self, node1, node2):
         """Get edges neighboring the edge (node1, node2)"""
