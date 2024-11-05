@@ -97,11 +97,12 @@ class CustomGraph:
                 midpoint = np.mean([self.positions[u], self.positions[v]], axis=0)
                 plt.scatter(midpoint[0], midpoint[1], s=targets * 50, c='red', alpha=0.6, marker='o')
 
-        # Draw agents on the map as green dots
+        # Draw agents on the map as green dots with agent ID
         for agent in agents:
             if agent.current_node in self.positions:
                 agent_pos = self.positions[agent.current_node]
-                plt.scatter(agent_pos[0], agent_pos[1], s=300, c='green', edgecolors='black', label=f'Agent @ {agent.current_node}')
+                plt.scatter(agent_pos[0], agent_pos[1], s=300, c='green', edgecolors='black',
+                          label=f'Agent {agent.agent_id} @ {agent.current_node}')
 
         # Handle legend for agents
         if agents:
@@ -113,8 +114,11 @@ class CustomGraph:
         plt.title('Agent Simulation', fontsize=15)
         plt.pause(step_time)  # Pause to update the plot
 
-    def build_a_map(self):
-        """Generates a large map using Delaunay triangulation with 50 nodes."""
+    def build_a_map(self, num_zones=3):
+        """
+        Generates a large map using Delaunay triangulation with 50 nodes.
+        Ensures even distribution of edges and targets among zones.
+        """
         num_nodes = 50
         # Generate random positions for the nodes
         positions = {}
@@ -141,43 +145,44 @@ class CustomGraph:
                 edge = tuple(sorted((node1, node2)))
                 edges.add(edge)
 
-        # Randomly select some edges as congestion-prone
-        num_congestion_prone_edges = int(len(edges) * 0.2)  # For example, 20% of edges
-        congestion_prone_edges = random.sample(list(edges), num_congestion_prone_edges)
+        # Convert edges to list for easier handling
+        edge_list = list(edges)
+        random.shuffle(edge_list)  # Randomize edges
 
         # Calculate the maximum possible distance in the grid
-        max_distance = np.hypot(1000, 1000)  # Approximately 1414.21
+        max_distance = np.hypot(1000, 1000)
 
-        # Add the edges to the graph
-        for edge in edges:
+        # Process each edge
+        for i, edge in enumerate(edge_list):
             node1, node2 = edge
-            # Calculate distance
+
+            # Calculate distance and weight
             x1, y1 = self.positions[node1]
             x2, y2 = self.positions[node2]
             distance = np.hypot(x2 - x1, y2 - y1)
 
-            # Normalize the weight to be between 1 and 20
+            # Normalize weight
             normalized_weight = int(round((distance / max_distance) * 20))
-            # Ensure the weight is at least 1
             normalized_weight = max(1, normalized_weight)
 
-            # Initial targets
-            targets = random.randint(1, 10)
+            # Simple round-robin label assignment
+            label = (i % num_zones) + 1
 
-            # Check if this edge is congestion-prone
-            congestion_prone = edge in congestion_prone_edges
+            # Ensure each edge has some targets
+            targets = random.randint(3, 10)  # Guarantee minimum 3 targets
 
-            # TODO:  Map subdivisions
-            label = np.random.randint(1, 4)
+            # Add edge to graph
+            edge_added = self.add_edge(node1, node2,
+                                       weight=normalized_weight,
+                                       targets=targets,
+                                       congestion_prone=False,
+                                       label=label)
 
-            edge_added = self.add_edge(node1, node2, weight=normalized_weight, targets=targets,
-                                       congestion_prone=congestion_prone, label=label)
             if edge_added:
-                # Edge was added, safe to set base_weight
                 self.G[node1][node2]['base_weight'] = normalized_weight
 
     def update_map(self):
-        """Update each edge with new congestion levels and targets."""
+        """Update each edge with new congestion levels only. No new targets generated."""
         # Update each edge with new congestion levels
         new_weights = {}
         congested_edges = set()
@@ -219,14 +224,6 @@ class CustomGraph:
 
         # Update congested edges
         self.congested_edges.update(congested_edges)
-
-        # Update targets
-        for node1, node2 in self.G.edges():
-            current_targets = self.G[node1][node2]['targets']
-            increment = random.randint(0, 2)
-            max_targets = 20
-            new_targets = min(current_targets + increment, max_targets)
-            self.update_edge_targets(node1, node2, new_targets)
 
     def get_neighboring_edges(self, node1, node2):
         """Get edges neighboring the edge (node1, node2)"""
