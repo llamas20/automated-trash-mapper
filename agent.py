@@ -124,14 +124,17 @@ class Agent:
                         edge_data = self.graph.G[self.planned_path[-2]][self.planned_path[-1]]
                         node1 = self.planned_path[-2]
                         node2 = self.planned_path[-1]
-                        if edge_data['targets'] > 0:
-                            targets_collected = edge_data['targets']
-                            self.collected_targets += targets_collected
-                            self.load += targets_collected
+                        space_remaining = self.max_load - self.load
+                        if edge_data['targets'] > 0 and space_remaining > 0:
+                            targets_available = edge_data['targets']
+                            targets_to_collect = min(targets_available, space_remaining)
+                            self.collected_targets += targets_to_collect
+                            self.load += targets_to_collect
+                            edge_data['targets'] -= targets_to_collect
                             print(
-                                f"Agent {self.agent_id} collected {targets_collected} targets on edge ({node1}, {node2}). Total collected: {self.collected_targets}")
+                                f"Agent {self.agent_id} collected {targets_to_collect} targets on edge ({node1}, {node2}). Total collected: {self.collected_targets}. Current load: {self.load}/{self.max_load}")
                             # Set the edge's targets to zero
-                            self.graph.update_edge_targets(node1, node2, 0)
+                            self.graph.update_edge_targets(node1, node2, edge_data['targets'])
                         else:
                             print(f"Agent {self.agent_id} reached edge ({node1}, {node2}) but no targets to collect.")
 
