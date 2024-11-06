@@ -12,13 +12,14 @@ def build_big_map(num_zones):
     return graph
 
 
-def create_agents(graph, num_agents, start_node, hub_node):
+def create_agents(graph, num_agents, start_node, hub_node,max_load
+                  ):
     """
     Create a list of agents with different IDs.
     """
     agents = []
     for agent_id in range(1, num_agents + 1):
-        new_agent = Agent(graph=graph, start_node=start_node, hub_node=hub_node, agent_id=agent_id)
+        new_agent = Agent(graph=graph, start_node=start_node, hub_node=hub_node, agent_id=agent_id, max_load=max_load)
         agents.append(new_agent)
         print(f"Created Agent {agent_id}")
     return agents
@@ -44,8 +45,11 @@ def main():
     # Define the hub node (assuming node 1 is the hub)
     hub_node = 1
 
+    # Initialize agents with a specified max load
+    max_load = 100
+
     # Initialize agents
-    agents = create_agents(graph, num_agents=num_agents, start_node=hub_node, hub_node=hub_node)
+    agents = create_agents(graph, num_agents=num_agents, start_node=hub_node, hub_node=hub_node,max_load=max_load)
     print(f"Initialized {len(agents)} agents")
 
     # Visualize the initial map with the agents' positions
@@ -77,14 +81,25 @@ def main():
 
         # Check if simulation should continue
         if not any_agent_active:
-            simulation_active = False
-
+            all_at_hub = all(agent.current_node == hub_node for agent in agents)
+            if not all_at_hub:
+                # Continue simulation until all agents reach the hub
+                simulation_active = True
+                for agent in agents:
+                    if agent.current_node != hub_node and agent.state == 'idle':
+                        # Plan path back to the hub if the agent is idle
+                        agent.plan_path_to_hub()
+                        agent.state = 'moving'
+                        agent.mission = 'returning'
+            else:
+                simulation_active = False
+    """
     # After all agents are done, ensure they return to hub
     print("\n--- Final Return to Hub ---")
     for agent in agents:
         if agent.current_node != hub_node:
             agent.return_to_hub()
-
+    """
     # Final visualization
     graph.draw_graph_with_agent(agents, step_time=0.5)
 
