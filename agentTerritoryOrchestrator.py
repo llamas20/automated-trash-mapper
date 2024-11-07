@@ -7,6 +7,7 @@ class AgentTerritoryOrchestrator:
         self.agents = [] # this will hold all the agents
         self.hub_node = hub_node # this node is hub for agents. # Maybe we should have this be an attribute of the map, not the agent...
         self.max_load = max_load
+        self.step_counter = 0 # keeps track of number of steps taken 
 
         for i in range(num_agents):
             new_agent = Agent(graph=graph, start_node=hub_node, hub_node=hub_node, agent_id=i,max_load=max_load)
@@ -19,6 +20,8 @@ class AgentTerritoryOrchestrator:
         return
     
     def step(self):
+        # update step count
+        self.step_counter += 1
         # determine if redistribution is needed
         if self.check_redistribution_conditions():
             self.redistribute()
@@ -31,6 +34,11 @@ class AgentTerritoryOrchestrator:
 
     def check_redistribution_conditions(self):
         # TODO create  algorithm here
+
+        # temp function
+        if self.step_counter%100 == 0:
+            return True
+
         return False
 
     def redistribute(self):
