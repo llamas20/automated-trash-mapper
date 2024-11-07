@@ -2,13 +2,14 @@ from map import CustomGraph
 from agent import Agent
 
 class AgentTerritoryOrchestrator:
-    def __init__(self, graph, num_agents, hub_node=1):
+    def __init__(self, graph, num_agents, hub_node=1, max_load=1000):
         self.graph = graph # allow graph to be accessed by orchestrator 
         self.agents = [] # this will hold all the agents
         self.hub_node = hub_node # this node is hub for agents. # Maybe we should have this be an attribute of the map, not the agent...
+        self.max_load = max_load
 
         for i in range(num_agents):
-            new_agent = Agent(graph, hub_node, hub_node, name=i)
+            new_agent = Agent(graph=graph, start_node=hub_node, hub_node=hub_node, agent_id=i,max_load=max_load)
             self.agents.append(new_agent)
 
         # TODO 
