@@ -4,13 +4,15 @@ import numpy as np
 from random import randint
 import random
 from scipy.spatial import Delaunay
+from matplotlib.patches import Patch, Circle
 
-#Built by ChatGPT
+# Built by ChatGPT
 class CustomGraph:
     def __init__(self):
         self.G = nx.Graph()
         self.positions = {}  # Dictionary to store node positions
         self.congested_edges = set()
+        self.traversing_edges = set()  # Track edges being traversed
 
     def add_node(self, node, x, y):
         """Add a node with x, y coordinates"""
@@ -56,31 +58,37 @@ class CustomGraph:
         else:
             print(f"No edge exists between {node1} and {node2}")
 
-    def draw_graph_with_agent(self, agents, step_time=0.1):
+    def draw_graph_with_agent(self, agents, step_time=0.1, zone_colors=None):
         """Draw the graph with node positions, edge weights, targets, and agents"""
         plt.clf()  # Clear the current figure
 
-        # Determine edge colors based on congestion
-        edge_colors = [
-            'red' if (u, v) in self.congested_edges or (v, u) in self.congested_edges else 'gray'
-            for u, v in self.G.edges()
-        ]
+        # Determine edge colors based on congestion and zones
+        edge_colors = []
+        for u, v in self.G.edges():
+            if isinstance(zone_colors, dict):
+                zone_color = zone_colors.get(self.G[u][v]['label'], 'gray')
+            elif isinstance(zone_colors, list):
+                label_index = self.G[u][v]['label'] - 1
+                zone_color = zone_colors[label_index] if label_index < len(zone_colors) else 'gray'
+            else:
+                zone_color = 'gray'
+            edge_colors.append(zone_color)
 
         # Determine node colors and sizes
         node_colors = ['lightblue'] * self.G.number_of_nodes()
         node_sizes = [300] * self.G.number_of_nodes()
 
-        # If there are agents, highlight their positions
+        # Highlight agent positions
         for agent in agents:
             if agent.current_node in self.positions:
                 node_index = list(self.G.nodes()).index(agent.current_node)
-                node_colors[node_index] = 'orange'
-                node_sizes[node_index] = 500
+                node_colors[node_index] = 'green'
+                node_sizes[node_index] = 800
 
         # Draw nodes
         nx.draw_networkx_nodes(self.G, self.positions, node_color=node_colors, node_size=node_sizes)
 
-        # Draw edges with color coordinated by congestion
+        # Draw edges with zone colors or gray if no zone color is provided
         nx.draw_networkx_edges(self.G, self.positions, edge_color=edge_colors, width=2)
 
         # Draw labels
@@ -97,29 +105,44 @@ class CustomGraph:
                 midpoint = np.mean([self.positions[u], self.positions[v]], axis=0)
                 plt.scatter(midpoint[0], midpoint[1], s=targets * 50, c='red', alpha=0.6, marker='o')
 
-        # Draw agents on the map as green dots with agent ID
+        # Draw agents on the map as green dots
         for agent in agents:
             if agent.current_node in self.positions:
                 agent_pos = self.positions[agent.current_node]
-                plt.scatter(agent_pos[0], agent_pos[1], s=300, c='green', edgecolors='black',
-                          label=f'Agent {agent.agent_id} @ {agent.current_node}')
+                plt.scatter(agent_pos[0], agent_pos[1], s=300, color='green', edgecolors='black')
 
-        # Handle legend for agents
-        if agents:
-            handles, labels = plt.gca().get_legend_handles_labels()
-            by_label = dict(zip(labels, handles))
-            plt.legend(by_label.values(), by_label.keys(), loc='upper right')
+        # Create custom legend entries for targets and agents
+        legend_elements = [
+            Patch(facecolor='red', edgecolor='black', label='Targets')  # Targets in red with black border
+        ]
+
+        # Add individual agents in green with a black border
+        for agent in agents:
+            agent_patch = Patch(facecolor='green', edgecolor='black', label=f"Agent {agent.agent_id} @ {agent.current_node}")
+            legend_elements.append(agent_patch)
+
+        # Add zone colors to the legend if provided
+        if zone_colors:
+            if isinstance(zone_colors, dict):
+                for label, color in zone_colors.items():
+                    legend_elements.append(Patch(facecolor=color, edgecolor='black', label=f'Zone {label}'))
+            elif isinstance(zone_colors, list):
+                for i, color in enumerate(zone_colors):
+                    legend_elements.append(Patch(facecolor=color, edgecolor='black', label=f'Zone {i + 1}'))
+
+        # Draw the legend with zone colors, targets, and agents
+        plt.legend(handles=legend_elements, loc='upper right', frameon=True)
 
         plt.axis('off')
-        plt.title('Agent Simulation', fontsize=15)
-        plt.pause(step_time)  # Pause to update the plot
-
-    def build_a_map(self, num_zones=3):
+        plt.title('Agent Simulation with Zones and Targets', fontsize=15)
+        plt.pause(step_time)  # Pause to update the plot            
+            
+    def build_a_map(self, num_zones, num_nodes):
         """
-        Generates a large map using Delaunay triangulation with 50 nodes.
+        Generates a large map using Delaunay triangulation with num_nodes nodes.
         Ensures even distribution of edges and targets among zones.
         """
-        num_nodes = 50
+        
         # Generate random positions for the nodes
         positions = {}
         for node_id in range(1, num_nodes + 1):

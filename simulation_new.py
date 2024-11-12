@@ -27,7 +27,7 @@ def create_agents(graph, num_agents, start_node, hub_node,max_load
 
 def main():
     # Set number of agents/zones
-    num_agents = 5  # Change this number to use more agents
+    num_agents = 3  # Change this number to use more agents
 
     # Build the big map with specified number of zones
     graph = build_big_map(num_agents)
