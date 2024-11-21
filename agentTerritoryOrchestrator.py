@@ -1,5 +1,3 @@
-# act.py
-
 from map import CustomGraph
 from agent import Agent
 import matplotlib.pyplot as plt
@@ -237,29 +235,3 @@ class AgentTerritoryOrchestrator:
         print(f"Total targets collected by all agents: {total_targets}")
 
         plt.show()
-
-def main():
-    # Parameters
-    num_agents = 3  # Number of zones and agents
-    num_nodes=10
-    hub_node = 1
-    max_load = 100
-
-    # Build the big map with specified number of zones
-    graph = CustomGraph()
-    graph.build_a_map(num_zones=num_agents,num_nodes=num_nodes)  # Generates a map with 50 nodes and labeled edges
-
-    # Initialize the orchestrator
-    orchestrator = AgentTerritoryOrchestrator(
-        graph=graph,
-        num_agents=num_agents,
-        hub_node=hub_node,
-        max_load=max_load
-    )
-    print(f"Initialized {len(orchestrator.agents)} agents")
-
-    # Run the simulation
-    orchestrator.run_simulation()
-
-if __name__ == "__main__":
-    main()
