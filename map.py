@@ -136,13 +136,11 @@ class CustomGraph:
         plt.axis('off')
         plt.title('Agent Simulation with Zones and Targets', fontsize=15)
         plt.pause(step_time)  # Pause to update the plot            
-            
+
     def build_a_map(self, num_zones, num_nodes):
         """
-        Generates a large map using Delaunay triangulation with num_nodes nodes.
-        Ensures even distribution of edges and targets among zones.
+        Generates a map using Delaunay triangulation with continuous zone labels.
         """
-        
         # Generate random positions for the nodes
         positions = {}
         for node_id in range(1, num_nodes + 1):
@@ -151,13 +149,20 @@ class CustomGraph:
             positions[node_id] = (x, y)
             self.add_node(node_id, x, y)
 
-        # Create a list of points for Delaunay triangulation
+        # Assign initial zones to nodes based on their position
+        node_zones = {}
         points = np.array(list(positions.values()))
-        # Perform Delaunay triangulation
+
+        # Use k-means to cluster nodes into zones
+        from sklearn.cluster import KMeans
+        kmeans = KMeans(n_clusters=num_zones, random_state=42)
+        node_labels = kmeans.fit_predict(points)
+        for node_id, label in zip(positions.keys(), node_labels):
+            node_zones[node_id] = label + 1  # Add 1 to match 1-based zone numbering
+
+        # Create Delaunay triangulation
         tri = Delaunay(points)
-        # Mapping from point indices to node IDs
         indices = list(positions.keys())
-        # Extract edges from the triangulation
         edges = set()
         for simplex in tri.simplices:
             for i in range(3):
@@ -168,15 +173,9 @@ class CustomGraph:
                 edge = tuple(sorted((node1, node2)))
                 edges.add(edge)
 
-        # Convert edges to list for easier handling
-        edge_list = list(edges)
-        random.shuffle(edge_list)  # Randomize edges
-
-        # Calculate the maximum possible distance in the grid
-        max_distance = np.hypot(1000, 1000)
-
         # Process each edge
-        for i, edge in enumerate(edge_list):
+        max_distance = np.hypot(1000, 1000)
+        for edge in edges:
             node1, node2 = edge
 
             # Calculate distance and weight
@@ -188,11 +187,11 @@ class CustomGraph:
             normalized_weight = int(round((distance / max_distance) * 20))
             normalized_weight = max(1, normalized_weight)
 
-            # Simple round-robin label assignment
-            label = (i % num_zones) + 1
+            # Assign edge to the zone of its first node
+            label = node_zones[node1]
 
             # Ensure each edge has some targets
-            targets = random.randint(3, 10)  # Guarantee minimum 3 targets
+            targets = random.randint(3, 10)
 
             # Add edge to graph
             edge_added = self.add_edge(node1, node2,
