@@ -34,10 +34,15 @@ class Agent:
         self.next_node_index = 0  # Index of next node in planned path
 
     def heuristic(self, node1, node2):
-        """Heuristic function for A* (Euclidean distance)."""
+        """Heuristic function for A* (minimum edge weight * manhattan distance)."""
         x1, y1 = self.graph.positions[node1]
         x2, y2 = self.graph.positions[node2]
-        return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+        # Use Manhattan distance
+        manhattan_distance = abs(x1 - x2) + abs(y1 - y2)
+        # Find the minimum edge weight in the graph
+        min_edge_weight = min(data['weight'] for _, _, data in self.graph.G.edges(data=True))
+        # Use minimum edge weight as unit distance cost
+        return (manhattan_distance * min_edge_weight) / 10  # Divide by 10 to further ensure no overestimation
 
     def find_path(self, start, goal):
         """Find path from start to goal using A*."""

@@ -100,7 +100,7 @@ class AgentTerritoryOrchestrator:
             zone_id = self.graph.G.nodes[u]['zone_id']
             self.graph.G.edges[u, v]['zone_id'] = zone_id
             self.graph.G.edges[u, v]['zone_color'] = self.zone_colors[zone_id]
-            self.graph.G.edges[u, v]['label'] = zone_id
+            self.graph.G.edges[u, v]['label'] = zone_id +1
 
     def create_agents(self):
         """
