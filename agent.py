@@ -94,20 +94,22 @@ class Agent:
         return cost
 
     def step(self):
-        """
-        Perform one step of the agent's action:
-        - Find the nearest edge with targets that matches agent's ID
-        - Move along the path to that edge
-        - Traverse the edge to collect targets
-        """
+        """Perform one step of the agent's action."""
         if self.state == 'moving':
-            # Agent is moving along an edge
+            # If at hub and mission is returning, reset state
+            if self.current_node == self.hub_node and self.mission == 'returning':
+                self.state = 'idle'
+                self.mission = None
+                self.load = 0
+                print(f"Agent {self.agent_id} arrived at hub and reset load to zero.")
+                return True
+
+            # Remaining movement logic stays unchanged
             self.time_remaining_on_edge -= 1
             if self.time_remaining_on_edge > 0:
                 node1, node2 = self.edge_being_crossed
                 print(f"Agent {self.agent_id} is moving along edge from {node1} to {node2}, time remaining: {self.time_remaining_on_edge}")
-                # Still moving, nothing else to do
-                return True  # Continue simulation
+                return True
             else:
                 # Arrived at the next node
                 self.current_node = self.planned_path[self.next_node_index]
@@ -247,7 +249,7 @@ class Agent:
     def plan_path_to_hub(self):
         """Plan a path to the hub node and start moving."""
         path = self.find_path(self.current_node, self.hub_node)
-        if path:
+        if path and len(path) > 1:  # Ensure path exists and has at least 2 nodes
             self.planned_path = path
             self.next_node_index = 1  # Start from next node in path
             node1 = self.current_node
@@ -255,8 +257,18 @@ class Agent:
             self.edge_being_crossed = (node1, node2)
             self.time_remaining_on_edge = self.graph.G[node1][node2]['weight']
             print(f"Agent {self.agent_id} planning path to hub: {self.planned_path}")
+        elif self.current_node == self.hub_node:
+            # If already at hub, reset state
+            self.state = 'idle'
+            self.mission = None
+            self.planned_path = []
+            self.next_node_index = 0
+            print(f"Agent {self.agent_id} already at hub.")
         else:
             print(f"Agent {self.agent_id} could not find a path back to the hub.")
+            # Reset state to avoid getting stuck
+            self.state = 'idle'
+            self.mission = None
 
     def plan_path_to_nearest_target_edge(self):
         """Plan a path to the nearest target edge and start moving."""

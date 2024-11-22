@@ -3,8 +3,8 @@ from map import CustomGraph
 
 
 def main():
-    num_agents = 5  # Number of zones and agents
-    num_nodes = 30
+    num_agents = 3  # Number of zones and agents
+    num_nodes = 8
     hub_node = 1
     max_load = 100
 
