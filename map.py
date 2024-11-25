@@ -82,7 +82,7 @@ class CustomGraph:
         for agent in agents:
             if agent.current_node in self.positions:
                 node_index = list(self.G.nodes()).index(agent.current_node)
-                node_colors[node_index] = 'green'
+                node_colors[node_index] = zone_colors[agent.agent_id - 1]
                 node_sizes[node_index] = 800
 
         # Draw nodes
@@ -108,8 +108,9 @@ class CustomGraph:
         # Draw agents on the map as green dots
         for agent in agents:
             if agent.current_node in self.positions:
+                agent_color = zone_colors[agent.agent_id - 1] if zone_colors else 'green'
                 agent_pos = self.positions[agent.current_node]
-                plt.scatter(agent_pos[0], agent_pos[1], s=300, color='green', edgecolors='black')
+                plt.scatter(agent_pos[0], agent_pos[1], s=300, color=agent_color, edgecolors='black')
 
         # Create custom legend entries for targets and agents
         legend_elements = [
@@ -118,7 +119,8 @@ class CustomGraph:
 
         # Add individual agents in green with a black border
         for agent in agents:
-            agent_patch = Patch(facecolor='green', edgecolor='black', label=f"Agent {agent.agent_id} @ {agent.current_node}")
+            agent_color = zone_colors[agent.agent_id - 1] if zone_colors else 'green'
+            agent_patch = Patch(facecolor=agent_color, edgecolor='black', label=f"Agent {agent.agent_id} @ {agent.current_node}")
             legend_elements.append(agent_patch)
 
         # Add zone colors to the legend if provided
