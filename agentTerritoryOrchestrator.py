@@ -7,6 +7,7 @@ import matplotlib.patches as mpatches
 import random
 from collections import defaultdict, Counter
 
+# Built by ChatGPT
 class AgentTerritoryOrchestrator:
     def __init__(self, graph, num_agents, hub_node=1, max_load=1000, heuristic_type='manhattan_distance'):
         """
@@ -170,13 +171,29 @@ class AgentTerritoryOrchestrator:
         Run the simulation loop.
         """
         # Create figure
-        fig = plt.figure(figsize=(14, 12))  # Increased width to accommodate legend
+        fig = plt.figure(figsize=(14, 12))
 
-        # Set up close event handler
+        # Set up pause state and next step flag
+        self.paused = False
+        self.next_step = False
+
+        def on_key_press(event):
+            if event.key == ' ':  # Space bar
+                self.paused = not self.paused
+                if self.paused:
+                    print("\nSimulation paused. Press space to continue or 'n' for next step.")
+                else:
+                    print("\nSimulation resumed.")
+            elif event.key == 'n' and self.paused:  # 'n' key only works when paused
+                self.next_step = True
+                print("\nExecuting next step...")
+
         def on_close(event):
             plt.close('all')
             exit(0)
 
+        # Connect event handlers
+        fig.canvas.mpl_connect('key_press_event', on_key_press)
         fig.canvas.mpl_connect('close_event', on_close)
 
         # Visualize the initial map with the agents' positions
@@ -187,6 +204,15 @@ class AgentTerritoryOrchestrator:
         simulation_active = True
 
         while simulation_active:
+            # Check if simulation is paused
+            while self.paused and not self.next_step:
+                plt.pause(0.1)  # Keep GUI responsive while paused
+                if not plt.get_fignums():  # Check if window was closed
+                    return
+
+            # Reset next step flag
+            self.next_step = False
+
             print(f"\n--- Step {step_count} ---")
 
             # Track if any agent is still active
