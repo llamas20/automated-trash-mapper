@@ -8,7 +8,7 @@ import random
 from collections import defaultdict, Counter
 
 class AgentTerritoryOrchestrator:
-    def __init__(self, graph, num_agents, hub_node=1, max_load=1000):
+    def __init__(self, graph, num_agents, hub_node=1, max_load=1000, heuristic_type='manhattan_distance'):
         """
         Initialize the orchestrator with the graph, number of agents (zones),
         hub node, and maximum load for agents.
@@ -17,6 +17,7 @@ class AgentTerritoryOrchestrator:
         self.num_agents = num_agents
         self.hub_node = hub_node
         self.max_load = max_load
+        self.heuristic_type = heuristic_type
         self.agents = []
 
         # Define distinct colors for zones
@@ -112,7 +113,8 @@ class AgentTerritoryOrchestrator:
                 start_node=self.hub_node,
                 hub_node=self.hub_node,
                 agent_id=agent_id,
-                max_load=self.max_load
+                max_load=self.max_load,
+                heuristic_type=self.heuristic_type
             )
             self.agents.append(new_agent)
             print(f"Created Agent {agent_id}")

@@ -1,9 +1,10 @@
 import networkx as nx
 from map import CustomGraph
+import math
 
 #Built by ChatGPT
 class Agent:
-    def __init__(self, graph, start_node, hub_node, agent_id,max_load):
+    def __init__(self, graph, start_node, hub_node, agent_id,max_load, heuristic_type='manhattan_distance'):
         """
         Initialize agent on the graph at a starting node.
 
@@ -17,6 +18,7 @@ class Agent:
         self.hub_node = hub_node  # The hub node
         self.agent_id = agent_id  # Agent's ID for targeting specific edges
         self.max_load = max_load
+        self.heuristic_type = heuristic_type
 
         if start_node not in graph.G:
             raise ValueError(f"Node {start_node} does not exist in the graph")
@@ -291,3 +293,81 @@ class Agent:
         else:
             # No target edges found
             self.planned_path = None
+
+    def manhattan_distance(self, node1, node2):
+        """Original Manhattan distance heuristic"""
+        x1, y1 = self.graph.positions[node1]
+        x2, y2 = self.graph.positions[node2]
+        manhattan_distance = abs(x1 - x2) + abs(y1 - y2)
+        min_edge_weight = min(data['weight'] for _, _, data in self.graph.G.edges(data=True))
+        return (manhattan_distance * min_edge_weight) / 10
+
+    def euclidean_distance(self, node1, node2):
+        """Euclidean distance heuristic"""
+        x1, y1 = self.graph.positions[node1]
+        x2, y2 = self.graph.positions[node2]
+        # Calculate Euclidean distance
+        distance = math.hypot(x1 - x2, y1 - y2)
+        # Find minimum edge weight
+        min_edge_weight = min(data['weight'] for _, _, data in self.graph.G.edges(data=True))
+        # Further normalize the distance to ensure it doesn't exceed actual cost
+        return (distance * min_edge_weight) / 25  # Increase denominator to further reduce estimate
+
+    def modified_euclidean_distance(self, node1, node2):
+        """Modified Euclidean distance with minimum edge weight"""
+        x1, y1 = self.graph.positions[node1]
+        x2, y2 = self.graph.positions[node2]
+        distance = math.hypot(x1 - x2, y1 - y2)
+        min_edge_weight = min(data['weight'] for _, _, data in self.graph.G.edges(data=True))
+        # Normalize the distance to ensure it doesn't exceed actual cost
+        return (distance * min_edge_weight) / 15  # Use appropriate scaling factor
+
+    def calculate_congestion_penalty(self, node1, node2):
+        """Calculate congestion penalty between two nodes"""
+        congestion_sum = 0
+        edge_count = 0
+        for u, v, data in self.graph.G.edges(data=True):
+            if data.get('congestion_prone', False):
+                # Add penalty for congestion-prone edges
+                congestion_sum += data['weight']
+                edge_count += 1
+        
+        # Return 0 if no congested edges
+        if edge_count == 0:
+            return 0
+        
+        # Return average congestion value, ensuring it's not too large
+        return (congestion_sum / edge_count) / 10
+
+    def congestion_heuristic(self, node1, node2):
+        """Heuristic considering congestion"""
+        x1, y1 = self.graph.positions[node1]
+        x2, y2 = self.graph.positions[node2]
+        
+        # Calculate base distance
+        distance = math.hypot(x1 - x2, y1 - y2)
+        min_edge_weight = min(data['weight'] for _, _, data in self.graph.G.edges(data=True))
+        
+        # Scale base distance
+        scaled_distance = (distance * min_edge_weight) / 25
+        
+        # Calculate congestion penalty
+        congestion_penalty = self.calculate_congestion_penalty(node1, node2)
+        
+        # Return scaled distance plus small congestion penalty
+        return scaled_distance + congestion_penalty
+
+    def zero_heuristic(self, node1, node2):
+        """Zero heuristic (Dijkstra's algorithm)"""
+        return 0
+
+    def heuristic(self, node1, node2):
+        """Main heuristic function that delegates to the selected heuristic"""
+        heuristic_functions = {
+            'manhattan_distance': self.manhattan_distance,
+            'euclidean_distance': self.euclidean_distance,
+            'modified_euclidean_distance': self.modified_euclidean_distance,
+            'congestion': self.congestion_heuristic,
+            'zero_heuristic': self.zero_heuristic
+        }
+        return heuristic_functions[self.heuristic_type](node1, node2)
