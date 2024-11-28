@@ -273,28 +273,115 @@ class AgentTerritoryOrchestrator:
         """
         This function dictates when to redistribute the graph territories
         """
-        freq = 20 # how many steps between each redistribution
-        if params["step_count"] % freq == 0:
+        freq = 10 # how many steps between each redistribution
+        if params["step_count"] % freq == 0 and params["step_count"] != 0:
             return True
         else:
             return False
 
-    
-    def calculate_weight(self, edge):
+    def calculate_work(self, edge):
         """
-        This function dictates how to balance the Target and Weight of each edge for redistribution.
+        This function dictates how to calculate the work for each edge for redistribution.
         """
-        Target = 1
-        Weight = 2
+        Target = edge['targets']
+        Weight = edge['weight']
+        congestion_prone = edge["congestion_prone"]
         targetPercentage = 0.5
         calc_w = Target*targetPercentage + Weight*(1-targetPercentage)
 
         return calc_w
     
+    def calculate_zone_work(self):
+        """
+        Calulcates the amount of work per zone
+        """
+        num_zones = self.num_agents
+        zone_weights = [0]*num_zones
+        for u, v in self.graph.G.edges():
+            zone_id = self.graph.G.edges[u, v]['zone_id']
+            #print([u, v])
+            zone_weights[zone_id] += self.calculate_work(self.graph.G.edges[u, v])
+        return zone_weights
+    
+    def minimize_zone_work_diff(self, edge1, edge2, zone_work):
+        # Calculate the work of both edges
+        edge1_work = self.calculate_work(edge1)
+        edge2_work = self.calculate_work(edge2)
+        
+        # Get the current zone ids for the edges
+        edge1_zone = edge1['zone_id']
+        edge2_zone = edge2['zone_id']
+        
+        # Calculate the current difference in work between the zones
+        zone_work_diff_before = zone_work[edge1_zone] - zone_work[edge2_zone]
+        
+        #print("zone_work_diff before:", zone_work_diff_before)
+        
+        # Calculate what the new zone work would be if we switch the edges
+        zone_work_after_switch1 = (zone_work[edge1_zone] - edge1_work) + edge2_work  # If edge1 goes to edge2's zone
+        zone_work_after_switch2 = (zone_work[edge2_zone] - edge2_work) + edge1_work  # If edge2 goes to edge1's zone
+        
+        # Calculate the new differences in work if the switch happens
+        zone_work_diff_after1 = zone_work_after_switch1 - zone_work[edge2_zone]
+        zone_work_diff_after2 = zone_work_after_switch2 - zone_work[edge1_zone]
+        
+        # We want to minimize the absolute difference in work between the two zones
+        if abs(zone_work_diff_after1) < abs(zone_work_diff_before):
+            # Switching edge1 to edge2's zone reduces the difference
+            print("Added edge from zone", edge1['label'], "to zone", edge2['label'] )
+            zone_work[edge1_zone] -= edge1_work
+            zone_work[edge2_zone] += edge1_work
+            edge1['zone_id'] = edge2_zone
+            edge1['label'] = edge2['label']
+            #print("Switched edge1 to edge2's zone.")
+        elif abs(zone_work_diff_after2) < abs(zone_work_diff_before):
+            # Switching edge2 to edge1's zone reduces the difference
+            print("Added edge from zone", edge2['label'], "to zone", edge1['label'] )
+            zone_work[edge2_zone] -= edge2_work
+            zone_work[edge1_zone] += edge2_work
+            edge2['zone_id'] = edge1_zone
+            edge2['label'] = edge1['label']
+            #print("Switched edge2 to edge1's zone.")
+        
+        # Print the final difference after the potential switch
+        zone_work_diff_after = zone_work[edge1_zone] - zone_work[edge2_zone]
+        #print("zone_work_diff after:", zone_work_diff_after)
+
+        return
+    
+
     def redistribute(self):
         """
         Redistributes the graph labels to balance edge weights and target counts. 
         """
+        print("Debugging ReDist:")
+
+        num_zones = self.num_agents
+        num_passes = 1 # this is number of times redistribution is run
+        
+        # Calculate total amount of "work" per zone
+        zone_work = self.calculate_zone_work()
+        
+        print(zone_work)
+        print("Zone work variance BEFORE redistribution:",np.var(zone_work))
+
+        # get target work for each zone   
+        target_work = sum(zone_work)/num_zones
 
 
+        # trade edges between zones to minimize work differences
+        for i in range(num_passes):
+            for u, v in self.graph.G.edges():
+                for w, m in self.graph.G.edges():
+                    if u == w or v == m: # same edge, skip
+                        continue
+                    elif w == v or m == v or u == m or u == w: # edges share a node / are touching
+                        # minimize work diff if edges in different zones
+                        if self.graph.G.edges[u,v]["label"] != self.graph.G.edges[w,m]["label"]:
+                            self.minimize_zone_work_diff(self.graph.G.edges[u,v], self.graph.G.edges[w,m], zone_work)
+
+            print(zone_work)
+            print(f"Zone work variance AFTER redistribution iteration {i} of {num_passes}:",np.var(zone_work))
+
+        print("End ReDist")
         return
