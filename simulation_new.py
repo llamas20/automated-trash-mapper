@@ -10,8 +10,8 @@ def main():
     random.seed(seed)
     np.random.seed(seed)
 
-    num_agents = 6  # Number of zones and agents
-    num_nodes = 60
+    num_agents = 4  # Number of zones and agents
+    num_nodes = 40
     hub_node = 1
     max_load = 100
     

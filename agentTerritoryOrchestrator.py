@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.patches as mpatches
 import random
 from collections import defaultdict, Counter
+import networkx as nx
 
 # Built by ChatGPT
 class AgentTerritoryOrchestrator:
@@ -285,8 +286,11 @@ class AgentTerritoryOrchestrator:
         """
         Target = edge['targets']
         Weight = edge['weight']
-        congestion_prone = edge["congestion_prone"]
-        targetPercentage = 0.5
+
+        targetPercentage = 0.85
+        if edge["congestion_prone"]:
+            targetPercentage *= 0.85 # reduce weight of target when congestion prone
+
         calc_w = Target*targetPercentage + Weight*(1-targetPercentage)
 
         return calc_w
@@ -303,7 +307,77 @@ class AgentTerritoryOrchestrator:
             zone_weights[zone_id] += self.calculate_work(self.graph.G.edges[u, v])
         return zone_weights
     
+    def find_zone_edges(self, G, start_node, zone_id=1):
+        """
+        Function to find edges with a specific zone_id starting from a start_node
+        """
+        visited = set()  # To track visited nodes
+        edges_seen = set()  # To store edges that satisfy the zone_id condition
+
+        # Depth-First Search (DFS) function
+        def dfs(node):
+            visited.add(node)
+
+            # Traverse each neighbor
+            for neighbor in G.neighbors(node):
+                # Check if the edge has not been visited and if the edge has zone_id == zone_id
+                edge = (node, neighbor) if node < neighbor else (neighbor, node)
+                if edge not in edges_seen and G.edges[node, neighbor]['zone_id'] == zone_id:
+                    edges_seen.add(edge)  # Add edge to the set of seen edges
+                    dfs(neighbor)  # Continue DFS on this neighbor
+
+        # Start DFS from the start_node
+        dfs(start_node)
+
+        return edges_seen
+
+    def discontinuity(self, edge):
+        zone = edge['zone_id']
+        G = self.graph.G
+        #print("Discontinuity edge check", edge)
+
+        # get nodes
+        nodeA = None
+        nodeB = None
+        for u, v in G.edges():
+            if G.edges[u,v] == edge:
+                nodeA = u
+                nodeB = v
+
+
+        # determine which node boarders another zone
+        start_node = nodeA
+        for u, v in G.edges(nodeA):
+            if G.edges[u,v]['zone_id'] != zone:
+                start_node = nodeB
+
+        # start edge count from other node
+            # count all connected nodes with DFS or BFS
+        edges_before = self.find_zone_edges(G, start_node, zone_id=zone)
+        count_of_edges_before_remove = len(edges_before)
+        
+        # change edge zone label temporarily
+        edge['zone_id'] = self.num_agents
+
+        # start edge count from same node that did not boarder
+            # count all connected nodes with DFS or BFS
+        edges_after = self.find_zone_edges(G, start_node, zone_id=zone)
+        count_of_edges_after_remove = len(edges_after)
+
+        if count_of_edges_before_remove != count_of_edges_after_remove + 1:
+            # discontinuity found
+            # print("Discontinuity check before and after edge counts:",count_of_edges_before_remove, count_of_edges_after_remove)
+            edge['zone_id'] = zone
+            return True
+
+        # revert edge label
+        return False
+
+       
     def minimize_zone_work_diff(self, edge1, edge2, zone_work):
+        """
+        Determine weather to switch edge between zones and then switch them
+        """
         # Calculate the work of both edges
         edge1_work = self.calculate_work(edge1)
         edge2_work = self.calculate_work(edge2)
@@ -327,6 +401,10 @@ class AgentTerritoryOrchestrator:
         
         # We want to minimize the absolute difference in work between the two zones
         if abs(zone_work_diff_after1) < abs(zone_work_diff_before):
+            # Determine if switch will cause discontinuity of zone
+            if self.discontinuity(edge1):
+                # if discontinuity by switching edge label, then don't switch
+                return
             # Switching edge1 to edge2's zone reduces the difference
             print("Added edge from zone", edge1['label'], "to zone", edge2['label'] )
             zone_work[edge1_zone] -= edge1_work
@@ -335,6 +413,10 @@ class AgentTerritoryOrchestrator:
             edge1['label'] = edge2['label']
             #print("Switched edge1 to edge2's zone.")
         elif abs(zone_work_diff_after2) < abs(zone_work_diff_before):
+            # Determine if switch will cause discontinuity of zone
+            if self.discontinuity(edge1):
+                # if discontinuity by switching edge label, then don't switch
+                return
             # Switching edge2 to edge1's zone reduces the difference
             print("Added edge from zone", edge2['label'], "to zone", edge1['label'] )
             zone_work[edge2_zone] -= edge2_work
@@ -344,7 +426,7 @@ class AgentTerritoryOrchestrator:
             #print("Switched edge2 to edge1's zone.")
         
         # Print the final difference after the potential switch
-        zone_work_diff_after = zone_work[edge1_zone] - zone_work[edge2_zone]
+        #zone_work_diff_after = zone_work[edge1_zone] - zone_work[edge2_zone]
         #print("zone_work_diff after:", zone_work_diff_after)
 
         return
