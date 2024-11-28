@@ -218,13 +218,17 @@ class AgentTerritoryOrchestrator:
             # Track if any agent is still active
             any_agent_active = False
 
+            # Update the graph (congestion only, no new targets)
+            self.graph.update_map()
+
+            # Check if redistribution is triggered for Territory Malleability
+            if self.redistribution_condition({"step_count":step_count}):
+                self.redistribute()
+
             # Update each agent
             for agent in self.agents:
                 agent_active = agent.step()
                 any_agent_active = any_agent_active or agent_active
-
-            # Update the graph (congestion only, no new targets)
-            self.graph.update_map()
 
             # Update traversing edges based on agents' current actions
             self.update_traversing_edges()
@@ -264,3 +268,33 @@ class AgentTerritoryOrchestrator:
         print(f"Total targets collected by all agents: {total_targets}")
 
         plt.show()
+
+    def redistribution_condition(self, params):
+        """
+        This function dictates when to redistribute the graph territories
+        """
+        freq = 20 # how many steps between each redistribution
+        if params["step_count"] % freq == 0:
+            return True
+        else:
+            return False
+
+    
+    def calculate_weight(self, edge):
+        """
+        This function dictates how to balance the Target and Weight of each edge for redistribution.
+        """
+        Target = 1
+        Weight = 2
+        targetPercentage = 0.5
+        calc_w = Target*targetPercentage + Weight*(1-targetPercentage)
+
+        return calc_w
+    
+    def redistribute(self):
+        """
+        Redistributes the graph labels to balance edge weights and target counts. 
+        """
+
+
+        return
