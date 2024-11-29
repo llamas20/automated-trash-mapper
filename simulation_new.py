@@ -1,63 +1,40 @@
-#Built by ChatGPT
+from agentTerritoryOrchestrator import AgentTerritoryOrchestrator
 from map import CustomGraph
-from agent import Agent
-import matplotlib.pyplot as plt
+import random
+import numpy as np
 
-def build_big_map():
-    """
-    Build a larger map using Delaunay triangulation.
-    """
-    graph = CustomGraph()
-    graph.build_a_map()  # Generates a map with 50 nodes
-    return graph
-
-# Exits the figure upon closing the window
-def handle_close(evt):
-    raise SystemExit("Closed figure, exiting program")
-
+# Built by ChatGPT
 def main():
-    # Initialize interactive mode and set up the figure
-    plt.ion()
-    fig = plt.figure(figsize=(12, 12))  # Initialize the figure once
-    fig.canvas.mpl_connect('close_event', handle_close)
-    # Build the big map
-    graph = build_big_map()
+    # Set random seed for reproducibility
+    seed = 9999  # You can change this value to generate different maps
+    random.seed(seed)
+    np.random.seed(seed)
 
-    # Define the hub node (assuming node 1 is the hub)
+    num_agents = 4  # Number of zones and agents
+    num_nodes = 40
     hub_node = 1
+    max_load = 100
+    
+    # Available heuristics: 
+    # 'manhattan_distance', 'euclidean_distance', 'modified_euclidean_distance', 
+    # 'congestion', 'zero_heuristic'
+    heuristic_type = 'congestion'  # Change this to use different heuristics
 
-    # Initialize the agent at the hub node
-    agent = Agent(graph=graph, start_node=hub_node, hub_node=hub_node)
-    print("Agent initialized")
+    graph = CustomGraph()
+    graph.build_a_map(num_zones=num_agents, num_nodes=num_nodes, seed=seed)
 
-    # Visualize the initial map with the agent's position
-    graph.draw_graph_with_agent([agent], step_time=0.5)
+    orchestrator = AgentTerritoryOrchestrator(
+        graph=graph,
+        num_agents=num_agents,
+        hub_node=hub_node,
+        max_load=max_load,
+        heuristic_type=heuristic_type
+    )
 
-    # Run the simulation
-    step_count = 0
-    while True:
-        print(f"\n--- Step {step_count} ---")
-        continue_simulation = agent.step()
-        step_count += 1
+    print(f"Initialized {len(orchestrator.agents)} agents with {heuristic_type} heuristic")
+    print(f"Using random seed: {seed}")
+    orchestrator.run_simulation()
 
-        # Visualize the map after each step with the agent's current position
-        graph.draw_graph_with_agent([agent], step_time=0.5)
-
-        if not continue_simulation:
-            break
-
-    # After collecting all targets, ensure the agent is at the hub
-    if agent.current_node != hub_node:
-        print("\n--- Returning to Hub ---")
-        agent.return_to_hub()
-        graph.draw_graph_with_agent([agent], step_time=0.5)
-
-    print("\nSimulation Complete.")
-    print(f"Total targets collected: {agent.collected_targets}")
-
-    # Finalize the plot display
-    plt.ioff()       # Deactivate interactive mode
-    plt.show()       # Keep the plot window open until manually closed
 
 if __name__ == "__main__":
     main()
