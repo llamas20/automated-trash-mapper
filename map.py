@@ -139,17 +139,33 @@ class CustomGraph:
         plt.title('Agent Simulation with Zones and Targets', fontsize=15)
         plt.pause(step_time)  # Pause to update the plot            
             
-    def build_a_map(self, num_zones, num_nodes):
+    def build_a_map(self, num_zones, num_nodes, seed=None):
         """
         Generates a large map using Delaunay triangulation with num_nodes nodes.
         Ensures even distribution of edges and targets among zones.
-        """
         
-        # Generate random positions for the nodes
+        Args:
+            num_zones: Number of zones to create
+            num_nodes: Number of nodes to create
+            seed: Random seed for reproducibility
+        """
+        # Reset all random number generator seeds
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
+        
+        # Clear existing graph
+        self.G.clear()
+        self.positions.clear()
+        self.congested_edges.clear()
+        self.traversing_edges.clear()
+        
+        # Generate random positions for the nodes using numpy's random generator
+        rng = np.random.default_rng(seed)  # Create a new random number generator
         positions = {}
         for node_id in range(1, num_nodes + 1):
-            x = random.randint(0, 1000)
-            y = random.randint(0, 1000)
+            x = rng.integers(0, 1000)
+            y = rng.integers(0, 1000)
             positions[node_id] = (x, y)
             self.add_node(node_id, x, y)
 
@@ -159,6 +175,7 @@ class CustomGraph:
         tri = Delaunay(points)
         # Mapping from point indices to node IDs
         indices = list(positions.keys())
+        
         # Extract edges from the triangulation
         edges = set()
         for simplex in tri.simplices:
@@ -170,9 +187,9 @@ class CustomGraph:
                 edge = tuple(sorted((node1, node2)))
                 edges.add(edge)
 
-        # Convert edges to list for easier handling
+        # Convert edges to list and shuffle using numpy's random generator
         edge_list = list(edges)
-        random.shuffle(edge_list)  # Randomize edges
+        rng.shuffle(edge_list)  # Use the same random generator for shuffling
 
         # Calculate the maximum possible distance in the grid
         max_distance = np.hypot(1000, 1000)
@@ -180,8 +197,7 @@ class CustomGraph:
         # Process each edge
         for i, edge in enumerate(edge_list):
             node1, node2 = edge
-
-            # Calculate distance and weight
+            # Calculate distance and weight using numpy
             x1, y1 = self.positions[node1]
             x2, y2 = self.positions[node2]
             distance = np.hypot(x2 - x1, y2 - y1)
@@ -193,8 +209,8 @@ class CustomGraph:
             # Simple round-robin label assignment
             label = (i % num_zones) + 1
 
-            # Ensure each edge has some targets
-            targets = random.randint(3, 10)  # Guarantee minimum 3 targets
+            # Generate targets using numpy's random generator
+            targets = rng.integers(3, 11)  # Guarantee minimum 3 targets
 
             # Add edge to graph
             edge_added = self.add_edge(node1, node2,
@@ -205,6 +221,11 @@ class CustomGraph:
 
             if edge_added:
                 self.G[node1][node2]['base_weight'] = normalized_weight
+
+        # Reset random number generator seeds to ensure consistency in subsequent operations
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
 
     def update_map(self):
         """Update each edge with new congestion levels only. No new targets generated."""

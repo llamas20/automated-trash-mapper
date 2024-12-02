@@ -6,9 +6,11 @@ import numpy as np
 import matplotlib.patches as mpatches
 import random
 from collections import defaultdict, Counter
+import networkx as nx
 
+# Built by ChatGPT
 class AgentTerritoryOrchestrator:
-    def __init__(self, graph, num_agents, hub_node=1, max_load=1000):
+    def __init__(self, graph, num_agents, hub_node=1, max_load=1000, heuristic_type='manhattan_distance'):
         """
         Initialize the orchestrator with the graph, number of agents (zones),
         hub node, and maximum load for agents.
@@ -17,6 +19,7 @@ class AgentTerritoryOrchestrator:
         self.num_agents = num_agents
         self.hub_node = hub_node
         self.max_load = max_load
+        self.heuristic_type = heuristic_type
         self.agents = []
 
         # Define distinct colors for zones
@@ -112,7 +115,8 @@ class AgentTerritoryOrchestrator:
                 start_node=self.hub_node,
                 hub_node=self.hub_node,
                 agent_id=agent_id,
-                max_load=self.max_load
+                max_load=self.max_load,
+                heuristic_type=self.heuristic_type
             )
             self.agents.append(new_agent)
             print(f"Created Agent {agent_id}")
@@ -168,13 +172,29 @@ class AgentTerritoryOrchestrator:
         Run the simulation loop.
         """
         # Create figure
-        fig = plt.figure(figsize=(14, 12))  # Increased width to accommodate legend
+        fig = plt.figure(figsize=(14, 12))
 
-        # Set up close event handler
+        # Set up pause state and next step flag
+        self.paused = False
+        self.next_step = False
+
+        def on_key_press(event):
+            if event.key == ' ':  # Space bar
+                self.paused = not self.paused
+                if self.paused:
+                    print("\nSimulation paused. Press space to continue or 'n' for next step.")
+                else:
+                    print("\nSimulation resumed.")
+            elif event.key == 'n' and self.paused:  # 'n' key only works when paused
+                self.next_step = True
+                print("\nExecuting next step...")
+
         def on_close(event):
             plt.close('all')
             exit(0)
 
+        # Connect event handlers
+        fig.canvas.mpl_connect('key_press_event', on_key_press)
         fig.canvas.mpl_connect('close_event', on_close)
 
         # Visualize the initial map with the agents' positions
@@ -185,18 +205,31 @@ class AgentTerritoryOrchestrator:
         simulation_active = True
 
         while simulation_active:
+            # Check if simulation is paused
+            while self.paused and not self.next_step:
+                plt.pause(0.1)  # Keep GUI responsive while paused
+                if not plt.get_fignums():  # Check if window was closed
+                    return
+
+            # Reset next step flag
+            self.next_step = False
+
             print(f"\n--- Step {step_count} ---")
 
             # Track if any agent is still active
             any_agent_active = False
 
+            # Update the graph (congestion only, no new targets)
+            self.graph.update_map()
+
+            # Check if redistribution is triggered for Territory Malleability
+            if self.redistribution_condition({"step_count":step_count}):
+                self.redistribute()
+
             # Update each agent
             for agent in self.agents:
                 agent_active = agent.step()
                 any_agent_active = any_agent_active or agent_active
-
-            # Update the graph (congestion only, no new targets)
-            self.graph.update_map()
 
             # Update traversing edges based on agents' current actions
             self.update_traversing_edges()
@@ -236,3 +269,201 @@ class AgentTerritoryOrchestrator:
         print(f"Total targets collected by all agents: {total_targets}")
 
         plt.show()
+
+    def redistribution_condition(self, params):
+        """
+        This function dictates when to redistribute the graph territories
+        """
+        freq = 10 # how many steps between each redistribution
+        if params["step_count"] % freq == 0 and params["step_count"] != 0:
+            return True
+        else:
+            return False
+
+    def calculate_work(self, edge):
+        """
+        This function dictates how to calculate the work for each edge for redistribution.
+        """
+        Target = edge['targets']
+        Weight = edge['weight']
+
+        targetPercentage = 0.85
+        if edge["congestion_prone"]:
+            targetPercentage *= 0.85 # reduce weight of target when congestion prone
+
+        calc_w = Target*targetPercentage + Weight*(1-targetPercentage)
+
+        return calc_w
+    
+    def calculate_zone_work(self):
+        """
+        Calulcates the amount of work per zone
+        """
+        num_zones = self.num_agents
+        zone_weights = [0]*num_zones
+        for u, v in self.graph.G.edges():
+            zone_id = self.graph.G.edges[u, v]['zone_id']
+            #print([u, v])
+            zone_weights[zone_id] += self.calculate_work(self.graph.G.edges[u, v])
+        return zone_weights
+    
+    def find_zone_edges(self, G, start_node, zone_id=1):
+        """
+        Function to find edges with a specific zone_id starting from a start_node
+        """
+        visited = set()  # To track visited nodes
+        edges_seen = set()  # To store edges that satisfy the zone_id condition
+
+        # Depth-First Search (DFS) function
+        def dfs(node):
+            visited.add(node)
+
+            # Traverse each neighbor
+            for neighbor in G.neighbors(node):
+                # Check if the edge has not been visited and if the edge has zone_id == zone_id
+                edge = (node, neighbor) if node < neighbor else (neighbor, node)
+                if edge not in edges_seen and G.edges[node, neighbor]['zone_id'] == zone_id:
+                    edges_seen.add(edge)  # Add edge to the set of seen edges
+                    dfs(neighbor)  # Continue DFS on this neighbor
+
+        # Start DFS from the start_node
+        dfs(start_node)
+
+        return edges_seen
+
+    def discontinuity(self, edge):
+        zone = edge['zone_id']
+        G = self.graph.G
+        #print("Discontinuity edge check", edge)
+
+        # get nodes
+        nodeA = None
+        nodeB = None
+        for u, v in G.edges():
+            if G.edges[u,v] == edge:
+                nodeA = u
+                nodeB = v
+
+
+        # determine which node boarders another zone
+        start_node = nodeA
+        for u, v in G.edges(nodeA):
+            if G.edges[u,v]['zone_id'] != zone:
+                start_node = nodeB
+
+        # start edge count from other node
+            # count all connected nodes with DFS or BFS
+        edges_before = self.find_zone_edges(G, start_node, zone_id=zone)
+        count_of_edges_before_remove = len(edges_before)
+        
+        # change edge zone label temporarily
+        edge['zone_id'] = self.num_agents
+
+        # start edge count from same node that did not boarder
+            # count all connected nodes with DFS or BFS
+        edges_after = self.find_zone_edges(G, start_node, zone_id=zone)
+        count_of_edges_after_remove = len(edges_after)
+
+        if count_of_edges_before_remove != count_of_edges_after_remove + 1:
+            # discontinuity found
+            # print("Discontinuity check before and after edge counts:",count_of_edges_before_remove, count_of_edges_after_remove)
+            edge['zone_id'] = zone
+            return True
+
+        # revert edge label
+        return False
+
+       
+    def minimize_zone_work_diff(self, edge1, edge2, zone_work):
+        """
+        Determine weather to switch edge between zones and then switch them
+        """
+        # Calculate the work of both edges
+        edge1_work = self.calculate_work(edge1)
+        edge2_work = self.calculate_work(edge2)
+        
+        # Get the current zone ids for the edges
+        edge1_zone = edge1['zone_id']
+        edge2_zone = edge2['zone_id']
+        
+        # Calculate the current difference in work between the zones
+        zone_work_diff_before = zone_work[edge1_zone] - zone_work[edge2_zone]
+        
+        #print("zone_work_diff before:", zone_work_diff_before)
+        
+        # Calculate what the new zone work would be if we switch the edges
+        zone_work_after_switch1 = (zone_work[edge1_zone] - edge1_work) + edge2_work  # If edge1 goes to edge2's zone
+        zone_work_after_switch2 = (zone_work[edge2_zone] - edge2_work) + edge1_work  # If edge2 goes to edge1's zone
+        
+        # Calculate the new differences in work if the switch happens
+        zone_work_diff_after1 = zone_work_after_switch1 - zone_work[edge2_zone]
+        zone_work_diff_after2 = zone_work_after_switch2 - zone_work[edge1_zone]
+        
+        # We want to minimize the absolute difference in work between the two zones
+        if abs(zone_work_diff_after1) < abs(zone_work_diff_before):
+            # Determine if switch will cause discontinuity of zone
+            if self.discontinuity(edge1):
+                # if discontinuity by switching edge label, then don't switch
+                return
+            # Switching edge1 to edge2's zone reduces the difference
+            print("Added edge from zone", edge1['label'], "to zone", edge2['label'] )
+            zone_work[edge1_zone] -= edge1_work
+            zone_work[edge2_zone] += edge1_work
+            edge1['zone_id'] = edge2_zone
+            edge1['label'] = edge2['label']
+            #print("Switched edge1 to edge2's zone.")
+        elif abs(zone_work_diff_after2) < abs(zone_work_diff_before):
+            # Determine if switch will cause discontinuity of zone
+            if self.discontinuity(edge1):
+                # if discontinuity by switching edge label, then don't switch
+                return
+            # Switching edge2 to edge1's zone reduces the difference
+            print("Added edge from zone", edge2['label'], "to zone", edge1['label'] )
+            zone_work[edge2_zone] -= edge2_work
+            zone_work[edge1_zone] += edge2_work
+            edge2['zone_id'] = edge1_zone
+            edge2['label'] = edge1['label']
+            #print("Switched edge2 to edge1's zone.")
+        
+        # Print the final difference after the potential switch
+        #zone_work_diff_after = zone_work[edge1_zone] - zone_work[edge2_zone]
+        #print("zone_work_diff after:", zone_work_diff_after)
+
+        return
+    
+
+    def redistribute(self):
+        """
+        Redistributes the graph labels to balance edge weights and target counts. 
+        """
+        print("Debugging ReDist:")
+
+        num_zones = self.num_agents
+        num_passes = 1 # this is number of times redistribution is run
+        
+        # Calculate total amount of "work" per zone
+        zone_work = self.calculate_zone_work()
+        
+        print(zone_work)
+        print("Zone work variance BEFORE redistribution:",np.var(zone_work))
+
+        # get target work for each zone   
+        target_work = sum(zone_work)/num_zones
+
+
+        # trade edges between zones to minimize work differences
+        for i in range(num_passes):
+            for u, v in self.graph.G.edges():
+                for w, m in self.graph.G.edges():
+                    if u == w or v == m: # same edge, skip
+                        continue
+                    elif w == v or m == v or u == m or u == w: # edges share a node / are touching
+                        # minimize work diff if edges in different zones
+                        if self.graph.G.edges[u,v]["label"] != self.graph.G.edges[w,m]["label"]:
+                            self.minimize_zone_work_diff(self.graph.G.edges[u,v], self.graph.G.edges[w,m], zone_work)
+
+            print(zone_work)
+            print(f"Zone work variance AFTER redistribution iteration {i} of {num_passes}:",np.var(zone_work))
+
+        print("End ReDist")
+        return
