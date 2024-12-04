@@ -6,7 +6,7 @@ import numpy as np
 # Built by ChatGPT
 def main():
     # Set random seed for reproducibility
-    seed = 9999  # You can change this value to generate different maps
+    seed = 42  # You can change this value to generate different maps
     random.seed(seed)
     np.random.seed(seed)
 
