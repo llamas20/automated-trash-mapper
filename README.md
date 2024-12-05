@@ -18,18 +18,18 @@ heuristic_type: the type of heuristic used in the A* algortithm
 
 
 To test our code:
-# Test Manhattan distance heuristic
+Test Manhattan distance heuristic
 python3 test_heuristics.py manhattan_distance
 
-# Test Euclidean distance heuristic
+Test Euclidean distance heuristic
 python3 test_heuristics.py euclidean_distance
 
-# Test modified Euclidean distance heuristic
+Test modified Euclidean distance heuristic
 python3 test_heuristics.py modified_euclidean_distance
 
-# Test congestion heuristic
+Test congestion heuristic
 python3 test_heuristics.py congestion
 
-# Test zero heuristic
+Test zero heuristic
 python3 test_heuristics.py zero_heuristic
 
