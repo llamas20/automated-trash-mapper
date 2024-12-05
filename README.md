@@ -6,7 +6,7 @@ python version used: 3.11.9
 Required packages are included in the requirements.txt
 
 ## To run our code:
-python3 simulation.py
+_python3 simulation.py_
 
 You can modify these parameters in the simulation.py:
 
@@ -25,17 +25,17 @@ You can modify these parameters in the simulation.py:
 
 ## To test our code:
 ### Test Manhattan distance heuristic
-python3 test_heuristics.py manhattan_distance
+_python3 test_heuristics.py_ manhattan_distance
 
 ### Test Euclidean distance heuristic
-python3 test_heuristics.py euclidean_distance
+_python3 test_heuristics.py_ euclidean_distance
 
 ### Test modified Euclidean distance heuristic
-python3 test_heuristics.py modified_euclidean_distance
+_python3 test_heuristics.py_ modified_euclidean_distance
 
 ### Test congestion heuristic
-python3 test_heuristics.py congestion
+_python3 test_heuristics.py_ congestion
 
 ### Test zero heuristic
-python3 test_heuristics.py zero_heuristic
+_python3 test_heuristics.py_ zero_heuristic
 
